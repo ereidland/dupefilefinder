@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
@@ -198,7 +197,7 @@ public class DupeFileFinder extends JPanel implements ActionListener
 	void launch()
 	{
 		frame = new JFrame();
-		frame.setTitle("Evan's Duplicate File Finder");
+		frame.setTitle("(evanreidland.com) Evan's Duplicate File Finder.");
 		frame.setSize(520, 148);
 		frame.setResizable(false);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -296,7 +295,7 @@ public class DupeFileFinder extends JPanel implements ActionListener
 			
 			if(chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
 			{
-				baseDir = chooser.getCurrentDirectory().getAbsolutePath();
+				baseDir = chooser.getSelectedFile().getAbsolutePath();
 				dirField.setText(baseDir);
 				primeSearch();
 			}
