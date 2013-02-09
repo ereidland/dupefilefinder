@@ -5,6 +5,7 @@ import java.awt.event.ActionListener;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.security.DigestInputStream;
@@ -30,7 +31,8 @@ public class DupeFileFinder extends JPanel implements ActionListener
 							newSearch;
 	
 	JTextField				dirField,
-							stats;
+							stats,
+							scanning;
 	
 	boolean					searching;
 	
@@ -49,10 +51,27 @@ public class DupeFileFinder extends JPanel implements ActionListener
 	
 	Thread					searchThread;
 	
+	String[]				hexValues;
+	
+	String hexDigest(byte[] values)
+	{
+		StringBuilder str = new StringBuilder(values.length*2);
+		for (int i = 0; i < values.length; i++)
+			str.append(hexValues[0xFF & values[i]]);
+		return str.toString();
+	}
+	
 	void endSearch()
 	{
 		searchThread = null;
 		searching = false;
+		if (dupeCount > 0)
+		{
+			logEverything("log.txt");
+			scanning.setText("Logged dupes to log.txt");
+		}
+		else
+			scanning.setText("No duplicates found.");
 		begin.setText("Begin");
 	}
 	
@@ -64,8 +83,14 @@ public class DupeFileFinder extends JPanel implements ActionListener
 			MessageDigest md = MessageDigest.getInstance("MD5");
 			in = new FileInputStream(file);
 			in = new DigestInputStream(in, md);
+			
+			while (in.available() > 0)
+				in.read();
+			
+			String str = hexDigest(md.digest());
+			
 			in.close();
-			return String.valueOf(md.digest());
+			return str;
 		}
 		catch (Exception e) { e.printStackTrace(); }
 		return null;
@@ -74,9 +99,10 @@ public class DupeFileFinder extends JPanel implements ActionListener
 	void iterateSearch(File dir)
 	{
 		File[] all = dir.listFiles();
+		if (all == null) return;
 		for (File f : all)
 		{
-			stats.setText("Scanning " + f.getAbsolutePath());
+			scanning.setText(f.getAbsolutePath());
 			if (f.isDirectory())
 			{
 				dirCount++;
@@ -106,6 +132,25 @@ public class DupeFileFinder extends JPanel implements ActionListener
 		}
 	}
 	
+	void logEverything(String file)
+	{
+		try	{
+			PrintStream str = new PrintStream(new FileOutputStream(file));
+			for (Map.Entry<String, Vector<String>> dupes : hashMap.entrySet())
+			{
+				String hash = dupes.getKey();
+				Vector<String> list = dupes.getValue();
+				if (list.size() > 1)
+				{
+					str.println(list.size() + " matches for hash " + hash);
+					for (String path : list)
+						str.println("----" + path);
+					str.println("----------------");
+				}
+			}
+		} catch (Exception e) { e.printStackTrace(); }
+	}
+	
 	void runSearch()
 	{
 		dirs = new Queue<File>();
@@ -116,7 +161,7 @@ public class DupeFileFinder extends JPanel implements ActionListener
 		{
 			stats.setText("Beginning at: " + baseDir);
 			iterateSearch(base);
-			while(!dirs.empty())
+			while(!dirs.empty() && searching)
 			{
 				File dir = dirs.pop();
 				iterateSearch(dir);
@@ -134,7 +179,7 @@ public class DupeFileFinder extends JPanel implements ActionListener
 	{
 		frame = new JFrame();
 		frame.setTitle("Evan's Duplicate File Finder");
-		frame.setSize(520, 128);
+		frame.setSize(520, 148);
 		frame.setResizable(false);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
@@ -155,10 +200,23 @@ public class DupeFileFinder extends JPanel implements ActionListener
 		begin.addActionListener(this);
 		add(begin);
 		
+		scanning = new JTextField();
+		scanning.setPreferredSize(new Dimension(512, 24));
+		scanning.setEditable(false);
+		add(scanning);
+		
 		stats = new JTextField("No searches yet.");
 		stats.setPreferredSize(new Dimension(512, 24));
 		stats.setEditable(false);
 		add(stats);
+		
+		hexValues = new String[256];
+		for (int i = 0; i < 255; i++)
+		{
+			hexValues[i] = Integer.toHexString(i);
+			if (hexValues[i].length() == 1)
+				hexValues[i] = "0" + hexValues[i];
+		}
 		
 		frame.setVisible(true);
 		
