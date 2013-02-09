@@ -4,7 +4,14 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.PrintStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
 
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
@@ -17,27 +24,30 @@ public class DupeFileFinder extends JPanel implements ActionListener
 {
 	private static final long serialVersionUID = -3862205528056661463L;
 
-	JFrame			frame;
+	JFrame					frame;
 	
-	JButton			begin,
-					newSearch;
+	JButton					begin,
+							newSearch;
 	
-	JTextField		dirField,
-					stats;
+	JTextField				dirField,
+							stats;
 	
-	boolean			searching;
+	boolean					searching;
 	
-	DataInputStream inf;
-	PrintStream		log;
+	DataInputStream 		inf;
+	PrintStream				log;
 	
-	Queue<File>		dirs;
+	Queue<File>				dirs;
+	HashMap<String,
+		Vector<String>>		hashMap;
 	
-	String			baseDir;
+	String					baseDir;
 	
-	Thread			searchThread;
+	int						fileCount,
+							dirCount,
+							dupeCount;
 	
-	int				fileCount,
-					dirCount;
+	Thread					searchThread;
 	
 	void endSearch()
 	{
@@ -46,12 +56,73 @@ public class DupeFileFinder extends JPanel implements ActionListener
 		begin.setText("Begin");
 	}
 	
+	String hashFile(File file)
+	{
+		try
+		{
+			InputStream in = null;
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			in = new FileInputStream(file);
+			in = new DigestInputStream(in, md);
+			in.close();
+			return String.valueOf(md.digest());
+		}
+		catch (Exception e) { e.printStackTrace(); }
+		return null;
+	}
+	
+	void iterateSearch(File dir)
+	{
+		File[] all = dir.listFiles();
+		for (File f : all)
+		{
+			stats.setText("Scanning " + f.getAbsolutePath());
+			if (f.isDirectory())
+			{
+				dirCount++;
+				dirs.push(f);
+			}
+			else
+			{
+				String res = hashFile(f);
+				if (res != null)
+				{
+					if (hashMap.containsKey(res))
+					{
+						hashMap.get(res).add(f.getAbsolutePath());
+						dupeCount++;
+					}
+					else
+					{
+						Vector<String> v = new Vector<String>();
+						v.add(f.getAbsolutePath());
+						hashMap.put(res, v);
+					}
+				}
+				fileCount++;
+			}
+			
+			stats.setText("Files: " + fileCount + " Folders: " + dirCount + " Dupes: " + dupeCount);
+		}
+	}
+	
 	void runSearch()
 	{
 		dirs = new Queue<File>();
+		hashMap = new HashMap<String, Vector<String>>();
+		dupeCount = fileCount = dirCount = 0;
 		File base = new File(baseDir);
 		if (base.isDirectory())
+		{
 			stats.setText("Beginning at: " + baseDir);
+			iterateSearch(base);
+			while(!dirs.empty())
+			{
+				File dir = dirs.pop();
+				iterateSearch(dir);
+			}
+			endSearch();
+		}
 		else
 		{
 			stats.setText("Error: \"" + baseDir + "\" is not a valid directory.");
