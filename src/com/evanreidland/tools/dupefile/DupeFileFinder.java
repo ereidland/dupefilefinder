@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
@@ -49,7 +50,10 @@ public class DupeFileFinder extends JPanel implements ActionListener
 							dirCount,
 							dupeCount;
 	
-	Thread					searchThread;
+	long					startTime;
+	
+	Thread					searchThread,
+							updateStatus;
 	
 	String[]				hexValues;
 	
@@ -96,6 +100,24 @@ public class DupeFileFinder extends JPanel implements ActionListener
 		return null;
 	}
 	
+	String getTimeDiff(long ms)
+	{
+		StringBuilder time = new StringBuilder();
+		if (ms > 60000)
+		{
+			long min = ms/60000;
+			ms -= min*60000;
+			time.append(min + " min ");
+		}
+		if (ms > 1000)
+		{
+			long sec = ms/1000;
+			ms -= sec*1000;
+			time.append(sec + "." + ms/100 + " sec" );
+		}
+		return time.toString();
+	}
+	
 	void iterateSearch(File dir)
 	{
 		File[] all = dir.listFiles();
@@ -127,8 +149,6 @@ public class DupeFileFinder extends JPanel implements ActionListener
 				}
 				fileCount++;
 			}
-			
-			stats.setText("Files: " + fileCount + " Folders: " + dirCount + " Dupes: " + dupeCount);
 		}
 	}
 	
@@ -218,6 +238,26 @@ public class DupeFileFinder extends JPanel implements ActionListener
 				hexValues[i] = "0" + hexValues[i];
 		}
 		
+		updateStatus = new Thread(
+							new Runnable()
+							{
+								public void run()
+								{
+									while (true)
+									{
+										try 
+										{
+											Thread.sleep(100);
+											if (searching)
+												stats.setText("Files: " + fileCount + " Folders: " + dirCount + " Dupes: " + dupeCount + " Duration: " + getTimeDiff(System.currentTimeMillis() - startTime));
+										}
+										catch ( Exception e ) {}
+									}
+								}
+							}
+						);
+		updateStatus.start();
+		
 		frame.setVisible(true);
 		
 		searchThread = null;
@@ -234,6 +274,7 @@ public class DupeFileFinder extends JPanel implements ActionListener
 		{
 			begin.setText("Stop");
 			searching = true;
+			startTime = System.currentTimeMillis();
 			dirField.setText(dirField.getText().replace('\\', '/'));
 			baseDir = dirField.getText();
 			
