@@ -87,8 +87,10 @@ public class DupeFileFinder extends JPanel implements ActionListener
 			in = new FileInputStream(file);
 			in = new DigestInputStream(in, md);
 			
+			byte[] toread = new byte[1024];
+			
 			while (in.available() > 0)
-				in.read();
+				in.read(toread);
 			
 			String str = hexDigest(md.digest());
 			
